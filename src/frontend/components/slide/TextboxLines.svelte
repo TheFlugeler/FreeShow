@@ -290,7 +290,9 @@
                         {#each line.text || [] as text, ti}
                             {@const value = text.value?.replaceAll("\n", "<br>") || "<br>"}
                             {@const fontRatio = text.customType?.includes("disableTemplate") && !text.customType?.includes("jw") ? customTypeRatio : 1}
-
+                            <!--I think putting a #each here based on properties of the textbox-->
+                            <!--Will need to add a gap/ frequency property, frequency easy to do, gap controlled by left margin-->
+                            <!--Time gap between scrolling could be done with a bit of maths with scroll speed/ width-->
                             <span class="textContainer" style="{style ? getCustomStyle(text.style) : ''}{getColor(text.style)}{customStyle}{text.customType?.includes('disableTemplate') ? text.style : ''}{fontSize ? `;font-size: ${fontSize * fontRatio}px;` : style ? getCustomFontSize(text.style, outputStyle) : ''}">
                                 {@html getTextValue(value, i, ti, updateDynamic)}
                             </span>

@@ -855,7 +855,7 @@
                                 </div>
                             </div>
                         {:else}
-                            <div class="action-marker {action.type} context #timeline_node" class:selected={selectedActionIds.includes(action.id)} class:faded={!(action.data?.indexes ?? [0])?.some((a) => selectedItemIndexes.includes(a))} style="left: {(action.time / 1000) * zoomLevel}px; top: {baseY + 10}px;" data-title="{formatTime(action.time, type, $timelineStore)}: {action.name}" on:mousedown|stopPropagation={(e) => startActionDrag(e, action.id)}>
+                            <div class="action-marker {action.type} context #timeline_node" class:selected={selectedActionIds.includes(action.id)} class:faded={action.type === "style" && !(action.data?.indexes ?? [0])?.some((a) => selectedItemIndexes.includes(a))} style="left: {(action.time / 1000) * zoomLevel}px; top: {baseY + 10}px;" data-title="{formatTime(action.time, type, $timelineStore)}: {action.name}" on:mousedown|stopPropagation={(e) => startActionDrag(e, action.id)}>
                                 <div class="action-head">
                                     {#if action.type === "action"}
                                         <Icon id={action.data.triggers?.length === 1 ? actionData[action.data.triggers[0]]?.icon : "actions"} size={0.9} white />

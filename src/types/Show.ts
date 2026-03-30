@@ -94,6 +94,7 @@ export interface Slide {
     children?: string[]
     notes: string
     items: Item[]
+    timeline?: Timeline
 
     customDynamicValues?: { [key: string]: string | [string, string][] } // used for scripture slides
 }
@@ -295,6 +296,7 @@ export interface Timeline {
     // id: string
     // name: string
     actions: TimelineAction[]
+    loop?: boolean
 }
 
 export interface TimelineAction {
@@ -302,7 +304,7 @@ export interface TimelineAction {
     time: number // ms
     duration?: number // ms (media)
     name: string
-    type: string // "action" | "slide" | "show" | "audio"
+    type: string // "action" | "slide" | "show" | "audio" | "style"
     data: {
         id?: string // slide/action/show
         path?: string // audio
@@ -310,6 +312,12 @@ export interface TimelineAction {
         layoutId?: string // show
         triggers?: string[] // action
         actionValues?: any // action
+        // "style":
+        // text currently changes all the "text" styles in the item
+        indexes?: number[] // item indexes
+        type?: string // "item" | "text"
+        key?: string // style key
+        value?: string | number // style key value
     }
 }
 
@@ -511,6 +519,7 @@ export interface Template {
 export interface TemplateStyleOverride {
     id: string
     pattern: string
+    globalRegex?: string
     templateId?: string
 }
 export interface TemplateSettings {

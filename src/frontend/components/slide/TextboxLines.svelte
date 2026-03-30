@@ -103,8 +103,8 @@
     let contentHeight = 0
     let alignHeight = 0
 
-    $: copyCountHorizontal = contentWidth > 0 ? Math.ceil(alignWidth/(contentWidth + (item?.scrolling?.gap ?? 0))) + 1 : 1
-    $: copyCountVertical = contentHeight > 0 ? Math.ceil(alignHeight/(contentHeight + (item?.scrolling?.gap ?? 0))) + 1 : 1
+    $: copyCountHorizontal = contentWidth > 0 ? Math.ceil(alignWidth/(contentWidth + (item?.scrolling?.gap ?? 0))) + 2 : 2
+    $: copyCountVertical = contentHeight > 0 ? Math.ceil(alignHeight/(contentHeight + (item?.scrolling?.gap ?? 0))) + 2 : 2
 
     function getColor(style: string | undefined) {
         if (!isStage || !useOriginalTextColor || !style) return ""
@@ -587,6 +587,13 @@
         animation: rightLeftContinuous var(--scrollSpeed) linear infinite normal;
         flex-direction: row;
         width: max-content;
+    }
+
+    .leftRightContinuousScrolling .break,
+    .rightLeftContinuousScrolling .break{
+        white-space: nowrap;
+        width: auto;
+        text-wrap: none;
     }
 
     @keyframes rightLeftContinuous {

@@ -304,6 +304,7 @@ export interface TimelineAction {
     time: number // ms
     duration?: number // ms (media)
     name: string
+    color?: string
     type: string // "action" | "slide" | "show" | "audio" | "style"
     data: {
         id?: string // slide/action/show

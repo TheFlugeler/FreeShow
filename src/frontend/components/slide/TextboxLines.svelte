@@ -279,7 +279,7 @@
     bind:clientWidth={alignWidth}
     bind:clientHeight={alignHeight}
 >
-    {#if item?.scrolling?.continuousLoop}
+    {#if item?.scrolling?.continuousLoop && item?.scrolling?.type != "none"}
         <div 
             class="scrollWrapper" 
             style="--copyCountHorizontal: {copyCountHorizontal}; --copyCountVertical: {copyCountVertical};"

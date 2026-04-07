@@ -271,16 +271,16 @@
     class="align"
     class:hidden={hideContent}
     class:isStage
-    class:scrolling={!isStage && item?.scrolling?.type && !item?.scrolling?.continuousLoop && false}
-    class:topBottomScrolling={!isStage && item?.scrolling?.type === "top_bottom" && !item?.scrolling?.continuousLoop && false}
-    class:bottomTopScrolling={!isStage && item?.scrolling?.type === "bottom_top" && !item?.scrolling?.continuousLoop && false}
-    class:leftRightScrolling={!isStage && item?.scrolling?.type === "left_right" && !item?.scrolling?.continuousLoop && false}
-    class:rightLeftScrolling={!isStage && item?.scrolling?.type === "right_left" && !item?.scrolling?.continuousLoop && false}
-    style="--scrollSpeed: {item?.scrolling?.speed ?? 30}s;{style ? item?.align : null}"
+    class:scrolling={!isStage && item?.scrolling?.type && !item?.scrolling?.continuousLoop}
+    class:topBottomScrolling={!isStage && item?.scrolling?.type === "top_bottom" && !item?.scrolling?.continuousLoop}
+    class:bottomTopScrolling={!isStage && item?.scrolling?.type === "bottom_top" && !item?.scrolling?.continuousLoop}
+    class:leftRightScrolling={!isStage && item?.scrolling?.type === "left_right" && !item?.scrolling?.continuousLoop}
+    class:rightLeftScrolling={!isStage && item?.scrolling?.type === "right_left" && !item?.scrolling?.continuousLoop}
+    style="--scrollSpeed: {item?.scrolling?.speed ?? 30}s;{style ? item?.align : null};"
     bind:clientWidth={alignWidth}
     bind:clientHeight={alignHeight}
 >
-    {#if true || item?.scrolling?.continuousLoop}
+    {#if item?.scrolling?.continuousLoop}
         <div 
             class="scrollWrapper" 
             style="--copyCountHorizontal: {copyCountHorizontal}; --copyCountVertical: {copyCountVertical};"
@@ -293,7 +293,7 @@
                 <!--put the continuous scroll variable instead of 200px in style attribute below when integrating UI-->
                 <div 
                     class="scrollContent"
-                    style="{item?.scrolling?.type === "top_bottom" || item?.scrolling?.type === "bottom_top" ? "margin-bottom" : "margin-right"}: 200px;"
+                    style="{item?.scrolling?.type === "top_bottom" || item?.scrolling?.type === "bottom_top" ? "margin-bottom" : "margin-right"}: {item?.scrolling?.gap ?? 100}px;"
                     bind:clientHeight={contentHeight} 
                     bind:clientWidth={contentWidth}
                 >
@@ -569,22 +569,22 @@
         flex-shrink: 0;
     }
     .topBottomContinuousScrolling {
-        animation: topBottomContinuous var(--scrollSpeed) linear infinite normal;
+        animation: topBottomContinuous calc(var(--scrollSpeed)/var(--copyCountVertical)) linear infinite normal;
         flex-direction: column;
         height: max-content;
     }
     .bottomTopContinuousScrolling {
-        animation: bottomTopContinuous var(--scrollSpeed) linear infinite normal;
+        animation: bottomTopContinuous calc(var(--scrollSpeed)/var(--copyCountVertical)) linear infinite normal;
         flex-direction: column;
         height: max-content;
     }
     .leftRightContinuousScrolling {
-        animation: leftRightContinuous var(--scrollSpeed) linear infinite normal;
+        animation: leftRightContinuous calc(var(--scrollSpeed)/var(--copyCountHorizontal)) linear infinite normal;
         flex-direction: row;
         width: max-content;
     }
     .rightLeftContinuousScrolling {
-        animation: rightLeftContinuous var(--scrollSpeed) linear infinite normal;
+        animation: rightLeftContinuous calc(var(--scrollSpeed)/var(--copyCountHorizontal)) linear infinite normal;
         flex-direction: row;
         width: max-content;
     }

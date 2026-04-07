@@ -1069,6 +1069,8 @@
         "special": "Special",
         "scrolling": "Scrolling",
         "scrolling_speed": "Scrolling duration",
+        "continuous_loop": "Continuous looping",
+        "gap": "Gap spacing",
         "top_bottom": "Top to bottom",
         "bottom_top": "Bottom to top",
         "left_right": "Left to right",

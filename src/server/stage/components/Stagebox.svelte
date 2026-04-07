@@ -10,7 +10,7 @@
     import SlideProgress from "../items/SlideProgress.svelte"
     import SlideText from "../items/SlideText.svelte"
     import VideoTime from "../items/VideoTime.svelte"
-    import { activeTimers, background, output, outputSlideCache, progressData, stream, timers, variables } from "../util/stores"
+    import { activeTimers, background, media, output, outputSlideCache, progressData, stream, timers, variables } from "../util/stores"
     import MediaOutput from "./MediaOutput.svelte"
     import PreviewCanvas from "./PreviewCanvas.svelte"
     import Textbox from "./Textbox.svelte"
@@ -99,8 +99,7 @@
             if (textStyleKeys.includes(key)) textStyle += `${key}: ${value};`
             else if (key === "font-size" && isSlideTextWithAutosize) {
                 // Skip font-size for autosize items - let Textbox's autosize compute it
-            }
-            else itemStyle += `${key}: ${value};`
+            } else itemStyle += `${key}: ${value};`
         })
     }
 
@@ -144,7 +143,9 @@
                 <Clock autoSize={item.auto !== false ? autoSize : fontSize} style={false} {...item.clock} />
             {:else if item.type === "timer"}
                 <Timer {item} id={item.timer?.id || item.timerId || firstTimerId || ""} {today} style={item.auto === false ? "" : `font-size: ${item.auto !== false ? autoSize : fontSize}px;`} />
-            {:else if item.type === "media" || item.type === "camera"}
+            {:else if item.type === "media"}
+                <MediaOutput path={$media[item.src] || item.src} />
+            {:else if item.type === "camera"}
                 <Center faded>
                     <Icon id="noImage" size={8} white />
                 </Center>

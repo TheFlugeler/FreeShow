@@ -306,7 +306,7 @@ export interface TimelineAction {
     name: string
     color?: string
     type: string // "action" | "slide" | "show" | "audio" | "style"
-    easing?: { type?: "cubic-bezier"; t1: number; v1: number; t2: number; v2: number }
+    easing?: { type?: "cubic-bezier"; x1: number; y1: number; x2: number; y2: number }
 
     data: {
         id?: string // slide/action/show

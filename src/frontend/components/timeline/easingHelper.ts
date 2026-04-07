@@ -19,20 +19,20 @@ export function getActionEasing(action?: TimelineAction | null): EasingHandles {
     const easing = action?.easing
     return {
         // Incoming handle for this keyframe, relative to the previous segment.
-        x1: typeof easing?.t1 === "number" ? easing.t1 : DEFAULT_ACTION_EASING.x1,
-        y1: typeof easing?.v1 === "number" ? easing.v1 : DEFAULT_ACTION_EASING.y1,
+        x1: typeof easing?.x1 === "number" ? easing.x1 : DEFAULT_ACTION_EASING.x1,
+        y1: typeof easing?.y1 === "number" ? easing.y1 : DEFAULT_ACTION_EASING.y1,
         // Outgoing handle for this keyframe, relative to the next segment.
-        x2: typeof easing?.t2 === "number" ? easing.t2 : DEFAULT_ACTION_EASING.x2,
-        y2: typeof easing?.v2 === "number" ? easing.v2 : DEFAULT_ACTION_EASING.y2
+        x2: typeof easing?.x2 === "number" ? easing.x2 : DEFAULT_ACTION_EASING.x2,
+        y2: typeof easing?.y2 === "number" ? easing.y2 : DEFAULT_ACTION_EASING.y2
     }
 }
 
 export function toStoredActionEasing(handles: EasingHandles) {
     return {
-        t1: handles.x1,
-        v1: handles.y1,
-        t2: handles.x2,
-        v2: handles.y2
+        x1: handles.x1,
+        y1: handles.y1,
+        x2: handles.x2,
+        y2: handles.y2
     }
 }
 

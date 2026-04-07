@@ -266,7 +266,6 @@
     // $: isScripture = ref?.id === "scripture" || ref?.showId === "temp" || $showsCache[ref.showId || ""]?.reference?.type === "scripture"
 </script>
 
-<!--Remove false and trues when integrating UI options - TESTING ONLY-->
 <div
     class="align"
     class:hidden={hideContent}
@@ -290,7 +289,6 @@
             class:rightLeftContinuousScrolling={!isStage && item?.scrolling?.type === "right_left"}           
         >
             {#each Array.from({length: (item?.scrolling?.type === "top_bottom" || item?.scrolling?.type === "bottom_top" ? copyCountVertical : copyCountHorizontal)}) as _}
-                <!--put the continuous scroll variable instead of 200px in style attribute below when integrating UI-->
                 <div 
                     class="scrollContent"
                     style="{item?.scrolling?.type === "top_bottom" || item?.scrolling?.type === "bottom_top" ? "margin-bottom" : "margin-right"}: {item?.scrolling?.gap ?? 100}px;"
@@ -564,7 +562,6 @@
         display: flex;
         flex-wrap: nowrap;
     }
-    
     .scrollContent{
         flex-shrink: 0;
     }

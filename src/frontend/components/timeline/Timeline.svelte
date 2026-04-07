@@ -12,6 +12,8 @@
     import Icon from "../helpers/Icon.svelte"
     import FloatingInputs from "../input/FloatingInputs.svelte"
     import MaterialButton from "../inputs/MaterialButton.svelte"
+    import { getActionEasing, getSegmentCurve, getSegmentCurvePoints, toStoredActionEasing } from "./easingHelper"
+    import type { EasingHandles } from "./easingHelper"
     import { ShowTimeline } from "./ShowTimeline"
     import { formatTime, getActionsAtPosition, getProjectShowDurations, getTickInterval, getTimelineSections, parseTime, TIMELINE_SECTION_GAP, TIMELINE_SECTION_HEIGHT, TIMELINE_SECTION_TOP, timelineSections, timelineZoom } from "./timeline"
     import { TimelineActions, type TimelineType } from "./TimelineActions"
@@ -230,6 +232,7 @@
 
     function startContentInteraction(e: MouseEvent) {
         if (e.button !== 0) return
+        if (e.target?.closest(".easing")) return
 
         // remove any selection
         selected.set({ id: null, data: [] })
@@ -691,6 +694,134 @@
     $: lastSlideAction = slideActions[slideActions.length - 1]
 
     $: selectedItemIndexes = type === "slide" ? ($activeEdit?.items?.length ? $activeEdit?.items : [0]) : []
+
+    let easingActive: number | null = null
+
+    // --- Cubic Bezier Easing Points Calculation ---
+    interface EasingPoint {
+        id: string
+        x: number
+        y: number
+        action: TimelineAction
+    }
+
+    let points: EasingPoint[] = []
+    let easingCurvesPx: EasingHandles[] = []
+    $: if (easingActive !== null && type === "slide" && groupedActions && groupedActions[easingActive]) {
+        const minValue = Math.min(...groupedActions[easingActive].map((a) => (typeof a.data?.value === "number" ? a.data.value : Infinity)))
+        const maxValue = Math.max(...groupedActions[easingActive].map((a) => (typeof a.data?.value === "number" ? a.data.value : -Infinity)))
+        const valueRange = maxValue - minValue || 1
+
+        points = actions
+            .map((action) => {
+                const correctKey = groupedActions[easingActive!][0]?.data?.key === action.data?.key
+                if (!correctKey) return null
+                const faded = type === "slide" && action.type === "style" && !(action.data?.indexes ?? [0])?.some((a) => selectedItemIndexes.includes(a))
+                if (faded) return null
+
+                const top = faded ? 100 : 100 - (((typeof action.data?.value === "number" ? action.data.value : 0) - minValue) / valueRange) * 80
+                return {
+                    id: action.id,
+                    x: (action.time / 1000) * zoomLevel,
+                    y: top,
+                    action: action
+                } as EasingPoint
+            })
+            .filter((p): p is EasingPoint => p !== null)
+            .sort((a, b) => a.action.time - b.action.time)
+
+        // Calculate pixel positions for control points based on current zoom/value
+        easingCurvesPx = points.slice(0, -1).map((p1, i) => {
+            const p2 = points[i + 1]
+            const curve = getSegmentCurve(p1.action, p2.action)
+            return getSegmentCurvePoints(p1, p2, curve)
+        })
+    } else {
+        points = []
+        easingCurvesPx = []
+    }
+
+    // --- Curve Pin Drag Logic ---
+    let draggingCurveIndex: number | null = null
+    let draggingPin: 1 | 2 | null = null
+    let dragCurveOffset = { x: 0, y: 0 }
+
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+    function updateStoredEasing(action: TimelineAction, updater: (easing: EasingHandles) => EasingHandles) {
+        action.easing = toStoredActionEasing(updater(getActionEasing(action)))
+    }
+
+    function startCurvePinDrag(e: MouseEvent, curveIndex: number, pin: 1 | 2) {
+        e.stopPropagation()
+        draggingCurveIndex = curveIndex
+        draggingPin = pin
+        dragCurveOffset = { x: e.clientX, y: e.clientY }
+        window.addEventListener("mousemove", updateCurvePinDrag)
+        window.addEventListener("mouseup", endCurvePinDrag)
+    }
+
+    function updateCurvePinDrag(e: MouseEvent) {
+        if (draggingCurveIndex === null || draggingPin === null) return
+        const i = draggingCurveIndex
+        const pin = draggingPin
+        const p1 = points[i]
+        const p2 = points[i + 1]
+        if (!p1 || !p2) return
+        const dx = e.clientX - dragCurveOffset.x
+        const dy = e.clientY - dragCurveOffset.y
+        dragCurveOffset = { x: e.clientX, y: e.clientY }
+        const dt = p2.x - p1.x || 1
+        const dv = p2.y - p1.y || 1
+        if (pin === 1) {
+            // Update the incoming handle on the current keyframe.
+            updateStoredEasing(p2.action, (easing) => ({
+                x1: clamp(easing.x1 + dx / dt, 0, 1),
+                y1: clamp(easing.y1 + dy / dv, -2, 2),
+                x2: easing.x2,
+                y2: easing.y2
+            }))
+        } else {
+            // Update the outgoing handle on the current keyframe.
+            updateStoredEasing(p1.action, (easing) => ({
+                x1: easing.x1,
+                y1: easing.y1,
+                x2: clamp(easing.x2 + dx / dt, 0, 1),
+                y2: clamp(easing.y2 + dy / dv, -2, 2)
+            }))
+        }
+        actions = [...actions]
+    }
+
+    function endCurvePinDrag() {
+        draggingCurveIndex = null
+        draggingPin = null
+        window.removeEventListener("mousemove", updateCurvePinDrag)
+        window.removeEventListener("mouseup", endCurvePinDrag)
+    }
+
+    function setCurvePinLinear(i: number, pin: 1 | 2) {
+        if (!points[i]) return
+        const p = points[i]
+        if (pin === 1) {
+            // Reset the incoming handle onto the segment diagonal for a 45-degree linear angle.
+            updateStoredEasing(p.action, (easing) => ({ x1: 0.5, y1: 0.5, x2: easing.x2, y2: easing.y2 }))
+        } else if (pin === 2) {
+            // Reset the outgoing handle onto the segment diagonal for a 45-degree linear angle.
+            updateStoredEasing(p.action, (easing) => ({ x1: easing.x1, y1: easing.y1, x2: 0.5, y2: 0.5 }))
+        }
+        actions = [...actions]
+    }
+
+    function getLineStyle(x1: number, y1: number, x2: number, y2: number): string {
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+        return `position: absolute; left: ${x1}px; top: ${y1}px; width: ${distance}px; height: 1px; border-top: 1px dashed var(--secondary); transform: rotate(${angle}deg); transform-origin: 0 0; pointer-events: none; z-index: 3;`
+    }
+
+    const Y_OFFSET = 12
 </script>
 
 <svelte:window on:keydown={keydown} />
@@ -803,6 +934,11 @@
                             <div class="track-header" style="top: {TIMELINE_SECTION_TOP + i * (SECTION_HEIGHT + SECTION_GAP)}px;height: {SECTION_HEIGHT}px;width: 100%;">
                                 <Icon id={actions[0]?.data?.type === "text" ? "text" : "item"} white />
                                 <span class="track-name">{translateText(actions[0]?.name)}</span>
+
+                                <!-- easing -->
+                                <MaterialButton title="timeline.toggle_curve_editor" style="padding: 8px;margin-left: 30px;" isActive={easingActive === i} on:click={() => (easingActive = easingActive === null || easingActive !== i ? i : null)}>
+                                    <Icon id="easing" white />
+                                </MaterialButton>
                             </div>
                         {/each}
                     {:else}
@@ -886,6 +1022,96 @@
                         {/if}
                     {/each}
 
+                    <!-- Easing -->
+                    {#if easingActive !== null && type === "slide"}
+                        <div class="track-header easing" style="top: {TIMELINE_SECTION_TOP + easingActive * (SECTION_HEIGHT + SECTION_GAP) + SECTION_HEIGHT}px;height: 120px;width: 100%;" on:mousedown={() => (selectedActionIds = [])}>
+                            {#if groupedActions && groupedActions[easingActive]}
+                                <!-- Calculate points for the bezier curve in a reactive statement in <script>. -->
+                                {#if points.length > 1}
+                                    <svg class="easing-curve-svg" style="position:absolute;left:0;top:0;width:100%;height:100%;z-index:2;" width="100%" height="100%">
+                                        {#each points.slice(0, -1) as p, i}
+                                            {@const p1 = p}
+                                            {@const p2 = points[i + 1]}
+                                            {@const px = easingCurvesPx[i]}
+                                            <path d={`M ${p1.x},${p1.y - Y_OFFSET} C ${px.x1},${px.y1 - Y_OFFSET} ${px.x2},${px.y2 - Y_OFFSET} ${p2.x},${p2.y - Y_OFFSET}`} stroke="var(--secondary)" stroke-width="2" fill="none" opacity="0.7" style="pointer-events:none;" />
+                                        {/each}
+                                    </svg>
+
+                                    <!-- Dashed lines connecting points to handles (rendered as HTML divs to allow overflow) -->
+                                    {#each points as p, i}
+                                        {#if selectedActionIds.includes(p.id)}
+                                            {#if i > 0}
+                                                <div class="easing-line" style={getLineStyle(easingCurvesPx[i - 1].x2, easingCurvesPx[i - 1].y2 - Y_OFFSET, points[i].x, points[i].y - Y_OFFSET)} />
+                                            {/if}
+                                            {#if i < points.length - 1}
+                                                <div class="easing-line" style={getLineStyle(easingCurvesPx[i].x1, easingCurvesPx[i].y1 - Y_OFFSET, points[i].x, points[i].y - Y_OFFSET)} />
+                                            {/if}
+                                        {/if}
+                                    {/each}
+
+                                    <!-- Control point circles rendered as HTML divs to allow overflow -->
+                                    {#each points as p, i}
+                                        {#if selectedActionIds.includes(p.id)}
+                                            {#if i > 0}
+                                                <div
+                                                    class="easing-control-point"
+                                                    style="left: {easingCurvesPx[i - 1].x2}px; top: {easingCurvesPx[i - 1].y2 - Y_OFFSET}px;"
+                                                    on:mousedown={(e) => {
+                                                        if (e.button === 1) {
+                                                            e.preventDefault()
+                                                            e.stopPropagation()
+                                                            setCurvePinLinear(i, 1)
+                                                        } else if (e.button === 0) {
+                                                            startCurvePinDrag(e, i - 1, 1)
+                                                        }
+                                                    }}
+                                                />
+                                            {/if}
+                                            {#if i < points.length - 1}
+                                                <div
+                                                    class="easing-control-point"
+                                                    style="left: {easingCurvesPx[i].x1}px; top: {easingCurvesPx[i].y1 - Y_OFFSET}px;"
+                                                    on:mousedown={(e) => {
+                                                        if (e.button === 1) {
+                                                            e.preventDefault()
+                                                            e.stopPropagation()
+                                                            setCurvePinLinear(i, 2)
+                                                        } else if (e.button === 0) {
+                                                            startCurvePinDrag(e, i, 2)
+                                                        }
+                                                    }}
+                                                />
+                                            {/if}
+                                        {/if}
+                                    {/each}
+                                {/if}
+
+                                {#each points as p}
+                                    <div class="action-marker {p.action.type} context #timeline_node" class:selected={selectedActionIds.includes(p.action.id)} style="left: {p.x}px;top: {p.y}px;transform: translate(-50%, -50%);" on:mousedown|stopPropagation={(e) => startActionDrag(e, p.action.id)}>
+                                        <div class="action-head">
+                                            {#if p.action.type === "action"}
+                                                <Icon id={p.action.data.triggers?.length === 1 ? actionData[p.action.data.triggers[0]]?.icon : "actions"} size={0.9} white />
+                                            {:else if typeof p.action.data?.index === "number"}
+                                                {p.action.data.index + 1}
+                                            {/if}
+                                        </div>
+                                        <div class="action-label" style="{p.action.color ? `border-bottom: 1px solid ${p.action.color};` : ''}{type === 'slide' ? 'font-size: 0.7em;' : ''}">
+                                            {#if p.action.type === "style"}
+                                                {#if typeof p.action.data.value === "number"}
+                                                    {parseFloat(p.action.data.value.toFixed(1))}
+                                                {:else}
+                                                    {p.action.data.value}
+                                                {/if}
+                                            {:else}
+                                                {translateText(p.action.name)}
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {/each}
+                            {/if}
+                        </div>
+                    {/if}
+
                     <!-- Selection Box -->
                     {#if selectionRect}
                         <div class="selection-box" style="left: {selectionRect.x}px; top: {selectionRect.y}px; width: {selectionRect.w}px; height: {selectionRect.h}px;" out:fade={{ duration: 80 }}></div>
@@ -899,39 +1125,41 @@
             </div>
         </div>
 
-        <FloatingInputs side="left" style="margin-bottom: 8px;margin-left: 120px;">
-            {#if disablePlayback}
-                <MaterialButton style="min-width: 40px;padding: 10px;" title={isPlaying ? "media.stop" : "media.play"} on:click={() => (isPlaying ? player.pause() : player.play())}>
-                    <Icon id={isPlaying ? "stop" : "microphone"} white={!isPlaying} />
-                </MaterialButton>
-            {:else}
-                <MaterialButton title={isPlaying ? "media.pause" : "media.play"} on:click={() => (isPlaying ? player.pause() : player.play())}>
-                    <Icon size={1.3} id={isPlaying ? "pause" : "play"} white={!isPlaying} />
-                </MaterialButton>
+        {#if easingActive === null || type !== "slide"}
+            <FloatingInputs side="left" style="margin-bottom: 8px;margin-left: 120px;">
+                {#if disablePlayback}
+                    <MaterialButton style="min-width: 40px;padding: 10px;" title={isPlaying ? "media.stop" : "media.play"} on:click={() => (isPlaying ? player.pause() : player.play())}>
+                        <Icon id={isPlaying ? "stop" : "microphone"} white={!isPlaying} />
+                    </MaterialButton>
+                {:else}
+                    <MaterialButton title={isPlaying ? "media.pause" : "media.play"} on:click={() => (isPlaying ? player.pause() : player.play())}>
+                        <Icon size={1.3} id={isPlaying ? "pause" : "play"} white={!isPlaying} />
+                    </MaterialButton>
 
-                <MaterialButton disabled={currentTime === 0} title="media.stop" on:click={() => player.stop()}>
-                    <Icon size={1.3} id="stop" white={!isPlaying} />
-                </MaterialButton>
-            {/if}
+                    <MaterialButton disabled={currentTime === 0} title="media.stop" on:click={() => player.stop()}>
+                        <Icon size={1.3} id="stop" white={!isPlaying} />
+                    </MaterialButton>
+                {/if}
 
-            {#if type === "show"}
-                <div class="divider"></div>
+                {#if type === "show"}
+                    <div class="divider"></div>
 
-                <MaterialButton disabled={isPlaying && !isRecording} title="actions.{isRecording ? 'stop_recording' : 'start_recording'}" on:click={toggleRecording} red={isRecording}>
-                    <Icon size={1.3} id="record" white />
-                </MaterialButton>
-            {:else if type === "slide"}
-                <div class="divider"></div>
+                    <MaterialButton disabled={isPlaying && !isRecording} title="actions.{isRecording ? 'stop_recording' : 'start_recording'}" on:click={toggleRecording} red={isRecording}>
+                        <Icon size={1.3} id="record" white />
+                    </MaterialButton>
+                {:else if type === "slide"}
+                    <div class="divider"></div>
 
-                <MaterialButton title={translateText("media._loop" + (shouldLoop ? ": settings.enabled" : ""), $dictionary) || "Loop"} on:click={() => (shouldLoop = timeline.toggleLoop())} active={shouldLoop}>
-                    <Icon size={1.1} id="loop" white={!shouldLoop} />
-                </MaterialButton>
-            {/if}
+                    <MaterialButton title={translateText("media._loop" + (shouldLoop ? ": settings.enabled" : ""), $dictionary) || "Loop"} on:click={() => (shouldLoop = timeline.toggleLoop())} active={shouldLoop}>
+                        <Icon size={1.1} id="loop" white={!shouldLoop} />
+                    </MaterialButton>
+                {/if}
 
-            <!-- <div class="divider" />
+                <!-- <div class="divider" />
 
             <MaterialButton icon="focus" title="actions.resetZoom" on:click={resetView} /> -->
-        </FloatingInputs>
+            </FloatingInputs>
+        {/if}
 
         {#if type === "project"}
             <FloatingInputs style="margin-bottom: 8px;">
@@ -1091,6 +1319,31 @@
         display: flex;
         align-items: center;
         gap: 6px;
+    }
+
+    .easing {
+        background-color: var(--primary-darkest);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+        border-top: 2px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        z-index: 198;
+        overflow: visible;
+    }
+
+    .easing-control-point {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--secondary);
+        cursor: pointer;
+        transform: translate(-50%, -50%);
+        z-index: 3;
+    }
+
+    .easing-line {
+        pointer-events: none;
+        z-index: 3;
     }
 
     .playhead {

@@ -270,16 +270,12 @@
     class="align"
     class:hidden={hideContent}
     class:isStage
-    class:scrolling={!isStage && item?.scrolling?.type && !item?.scrolling?.continuousLoop}
-    class:topBottomScrolling={!isStage && item?.scrolling?.type === "top_bottom" && !item?.scrolling?.continuousLoop}
-    class:bottomTopScrolling={!isStage && item?.scrolling?.type === "bottom_top" && !item?.scrolling?.continuousLoop}
-    class:leftRightScrolling={!isStage && item?.scrolling?.type === "left_right" && !item?.scrolling?.continuousLoop}
-    class:rightLeftScrolling={!isStage && item?.scrolling?.type === "right_left" && !item?.scrolling?.continuousLoop}
+    class:scrolling={!isStage && item?.scrolling?.type}
     style="--scrollSpeed: {item?.scrolling?.speed ?? 30}s;{style ? item?.align : null};"
     bind:clientWidth={alignWidth}
     bind:clientHeight={alignHeight}
 >
-    {#if item?.scrolling?.continuousLoop && item?.scrolling?.type != "none"}
+    {#if !isStage && item?.scrolling?.type && item?.scrolling?.type !== "none"}
         <div 
             class="scrollWrapper" 
             style="--copyCountHorizontal: {copyCountHorizontal}; --copyCountVertical: {copyCountVertical};"
@@ -468,51 +464,6 @@
     .scrolling {
         /* scroll will always show overflowing text */
         overflow: visible !important;
-    }
-    .topBottomScrolling {
-        animation: topBottom var(--scrollSpeed) linear infinite normal;
-    }
-    .bottomTopScrolling {
-        animation: bottomTop var(--scrollSpeed) linear infinite normal;
-    }
-    .leftRightScrolling {
-        animation: leftRight var(--scrollSpeed) linear infinite normal;
-    }
-    .rightLeftScrolling {
-        animation: rightLeft var(--scrollSpeed) linear infinite normal;
-    }
-    
-    @keyframes topBottom {
-        from {
-            transform: translateY(-100%);
-        }
-        to {
-            transform: translateY(100%);
-        }
-    }
-    @keyframes bottomTop {
-        from {
-            transform: translateY(100%);
-        }
-        to {
-            transform: translateY(-100%);
-        }
-    }
-    @keyframes leftRight {
-        from {
-            transform: translateX(-100%);
-        }
-        to {
-            transform: translateX(100%);
-        }
-    }
-    @keyframes rightLeft {
-        from {
-            transform: translateX(100%);
-        }
-        to {
-            transform: translateX(-100%);
-        }
     }
 
     /* chords */

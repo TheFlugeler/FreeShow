@@ -224,7 +224,6 @@ export interface DynamicEvent {
 export interface Scrolling {
     type: "none" | "top_bottom" | "bottom_top" | "left_right" | "right_left"
     speed?: number
-    continuousLoop?: boolean
     gap?: number
 }
 
